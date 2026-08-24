@@ -167,3 +167,66 @@ function gs_new_tr_id(): string
 {
     return 'egg_' . date('Ymd') . '_' . bin2hex(random_bytes(6));
 }
+
+/**
+ * 상품 전체 동기화(0101) — gs_goods upsert. CLI(bin/gs.php)와 운영 엔드포인트(ops.php)가 같이 쓴다.
+ * $max 0 이면 끝까지 받고, 이번 목록에 없던 상품은 판매중지(SUS)로 내린다.
+ * 일부만 받았을 때는 내리지 않는다 — 멀쩡한 상품이 통째로 사라진다.
+ *
+ * @param  callable|null  $log  진행 로그 (없으면 조용히)
+ * @return array{ok:bool, seen:int, suspended:int, pages:int, message?:string, code?:string}
+ */
+function gs_sync(int $max = 0, ?callable $log = null): array
+{
+    $size = 100; $start = 1; $seen = 0; $pages = 0;
+    $db = egg_db();
+    $st = $db->prepare('INSERT INTO gs_goods
+        (goods_code, goods_name, brand_name, brand_code, affiliate, sale_price, discount_price,
+         img_s, img_b, valid_days, type_dtl, category1, state_cd, synced_at)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+        ON CONFLICT(goods_code) DO UPDATE SET
+         goods_name = excluded.goods_name, brand_name = excluded.brand_name,
+         brand_code = excluded.brand_code, affiliate = excluded.affiliate,
+         sale_price = excluded.sale_price, discount_price = excluded.discount_price,
+         img_s = excluded.img_s, img_b = excluded.img_b, valid_days = excluded.valid_days,
+         type_dtl = excluded.type_dtl, category1 = excluded.category1,
+         state_cd = excluded.state_cd, synced_at = excluded.synced_at');
+
+    $now = time();
+    while (true) {
+        $r = gs_goods($start, $size);
+        if (!$r['ok']) return ['ok' => false, 'seen' => $seen, 'suspended' => 0, 'pages' => $pages,
+                               'code' => (string)($r['code'] ?? ''), 'message' => (string)($r['message'] ?? '')];
+        $list = $r['result']['goodsList'] ?? [];
+        if (!$list) break;
+
+        $db->beginTransaction();
+        foreach ($list as $g) {
+            $st->execute([
+                (string)($g['goodsCode'] ?? ''), (string)($g['goodsName'] ?? ''),
+                (string)($g['brandName'] ?? ''), (string)($g['brandCode'] ?? ''),
+                (string)($g['affiliate'] ?? ''), (int)($g['salePrice'] ?? 0),
+                (int)($g['discountPrice'] ?? 0), (string)($g['goodsImgS'] ?? ''),
+                (string)($g['goodsImgB'] ?? ''), (int)($g['limitDay'] ?? 0),
+                (string)($g['goodsTypeDtlNm'] ?? ''), (int)($g['category1Seq'] ?? 0),
+                (string)($g['goodsStateCd'] ?? ''), $now,
+            ]);
+        }
+        $db->commit();
+
+        $seen += count($list); $pages++;
+        if ($log) $log(sprintf('  %d페이지 %d건 (누적 %d)', $start, count($list), $seen));
+        if (count($list) < $size) break;
+        if ($max > 0 && $seen >= $max) break;
+        $start++;
+    }
+
+    $suspended = 0;
+    if ($max === 0 && $seen > 0) {
+        $sw = $db->prepare('UPDATE gs_goods SET state_cd = ? WHERE synced_at < ?');
+        $sw->execute(['SUS', $now]);
+        $suspended = $sw->rowCount();
+        if ($log) $log(sprintf('  목록에서 빠진 %d건은 판매중지 처리', $suspended));
+    }
+    return ['ok' => true, 'seen' => $seen, 'suspended' => $suspended, 'pages' => $pages];
+}
