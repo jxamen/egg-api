@@ -24,7 +24,17 @@ $sql  = "SELECT goods_code, goods_name, brand_name, affiliate, sale_price, img_s
 $args = [];
 $npay = "(goods_name LIKE '%네이버페이%' OR brand_name LIKE '%네이버페이%'
           OR goods_name LIKE '%네이버 페이%' OR brand_name LIKE '%네이버 페이%')";
-$sql .= $kind === 'npay' ? " AND $npay" : " AND NOT $npay";
+if ($kind === 'npay') {
+    // 같은 권종이 여러 건 온다(예: 5천원권 2건 — 발행 시기가 다른 상품). 전환 화면은 금액을
+    // 고르는 곳이라 권종당 하나만 남기고, 매입가(discount_price)가 싼 쪽을 고른다.
+    // SQLite 는 MIN() 을 쓴 집계에서 나머지 컬럼이 그 최소 행의 값을 갖는다.
+    $sql .= " AND $npay AND goods_code IN (
+        SELECT goods_code FROM gs_goods
+        WHERE state_cd = 'SALE' AND $npay
+        GROUP BY sale_price HAVING MIN(discount_price))";
+} else {
+    $sql .= " AND NOT $npay";
+}
 if ($max > 0) { $sql .= ' AND sale_price <= ?';                       $args[] = $max; }
 if ($q !== '') { $sql .= ' AND (goods_name LIKE ? OR brand_name LIKE ?)'; $args[] = "%$q%"; $args[] = "%$q%"; }
 // 네이버페이는 권종(금액) 순으로 보여야 전환 화면의 금액 선택이 자연스럽다
