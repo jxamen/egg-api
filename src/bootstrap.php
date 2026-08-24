@@ -56,6 +56,45 @@ function egg_db(): PDO
     $db->exec('CREATE INDEX IF NOT EXISTS ix_reward_user ON ad_reward (user_id, claimed_at)');
     $db->exec('CREATE INDEX IF NOT EXISTS ix_reward_day  ON ad_reward (user_id, created_at)');
 
+    // 기프티쇼 상품 캐시 — 규격서 FAQ 대로 전체 목록을 받아 두고 검색·전시는 여기서 한다
+    // (카테고리 검색 API 가 없고, 매 요청마다 호출하면 느려진다)
+    $db->exec('CREATE TABLE IF NOT EXISTS gs_goods (
+        goods_code     TEXT PRIMARY KEY,
+        goods_name     TEXT NOT NULL,
+        brand_name     TEXT,
+        brand_code     TEXT,
+        affiliate      TEXT,
+        sale_price     INTEGER,      -- 액면가. 이용자에게 받을 포인트의 기준
+        discount_price INTEGER,      -- 우리가 지불하는 금액(등급할인 적용) — 앱에 내보내지 않는다
+        img_s          TEXT,
+        img_b          TEXT,
+        valid_days     INTEGER,      -- limitDay
+        type_dtl       TEXT,         -- goodsTypeDtlNm (편의점·카페 …)
+        category1      INTEGER,
+        state_cd       TEXT,         -- SALE / SUS
+        synced_at      INTEGER NOT NULL
+    )');
+    $db->exec('CREATE INDEX IF NOT EXISTS ix_goods_state ON gs_goods (state_cd, sale_price)');
+
+    // 교환 원장 — tr_id 가 기본키라 같은 주문으로 두 번 발송되지 않는다
+    $db->exec('CREATE TABLE IF NOT EXISTS gs_order (
+        tr_id       TEXT PRIMARY KEY,
+        user_id     TEXT NOT NULL,
+        goods_code  TEXT NOT NULL,
+        point_price INTEGER NOT NULL,
+        status      TEXT NOT NULL,   -- pending / sent / failed / canceled
+        order_no    TEXT,
+        pin_no      TEXT,
+        coupon_img  TEXT,
+        valid_end   TEXT,
+        err_code    TEXT,
+        err_msg     TEXT,
+        created_at  INTEGER NOT NULL,
+        sent_at     INTEGER,
+        canceled_at INTEGER
+    )');
+    $db->exec('CREATE INDEX IF NOT EXISTS ix_order_user ON gs_order (user_id, created_at)');
+
     // 콜백 감사 로그 — 거절된 것도 남긴다
     $db->exec('CREATE TABLE IF NOT EXISTS ssv_log (
         id      INTEGER PRIMARY KEY AUTOINCREMENT,
