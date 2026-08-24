@@ -2,3 +2,5 @@ RewriteEngine On
 RewriteRule ^ads/ssv/?$      /ads/ssv.php      [L]
 RewriteRule ^ads/pending/?$  /ads/pending.php  [L]
 RewriteRule ^ads/claim/?$    /ads/claim.php    [L]
+RewriteRule ^shop/goods/?$   /shop/goods.php   [L]
+RewriteRule ^shop/order/?$   /shop/order.php   [L]
