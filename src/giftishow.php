@@ -2,13 +2,12 @@
 /**
  * 기프티쇼 비즈 API 클라이언트 (연동규격서 v1.05).
  *
- * 인증은 인증키(custom_auth_code)와, 그 인증키를 별도로 받은 암호화 키로
- * AES-256-ECB/PKCS5 암호화해 base64 로 만든 토큰(custom_auth_token)으로 한다.
+ * 인증은 발급받은 인증키(custom_auth_code)와 토큰키(custom_auth_token)를
+ * 그대로 파라미터로 실어 보낸다. 규격서 8쪽이 AES256/ECB 를 언급하지만
+ * 이어지는 괄호가 "기프티쇼 비즈에서 암호화하며, 고객사는 암호화 필요 없음"이다.
+ * 상용 키로 0101·0111 을 호출해 파라미터 전송만으로 code 0000 이 오는 것을 확인했다.
  *
- * 규격서가 스스로 엇갈리는 부분이 둘 있어 양쪽을 모두 보낸다.
- *   - 인증값 위치: "시스템 연동 방법"은 HTTP 헤더라 하고, 각 API 표는 파라미터라고 한다.
- *   - 테스트 플래그 이름: 헤더 설명은 dev_flag, 각 API 표는 dev_yn 이다.
- * 둘 다 실으면 어느 쪽을 읽든 통과하고, 서로 값이 다를 일도 없다.
+ * dev_yn 은 N 고정이다 — 규격서가 "N만 호출 가능", "현재 개발 환경은 지원하지 않습니다".
  */
 declare(strict_types=1);
 
@@ -28,28 +27,15 @@ function gs_config(): array
 {
     $c = egg_config()['giftishow'] ?? [];
     return [
-        'auth_code' => (string)($c['auth_code'] ?? ''),   // 인증 키 (서비스관리 메뉴)
-        'enc_key'   => (string)($c['enc_key'] ?? ''),     // 담당자에게 별도로 받는 암호화 키
-        'user_id'   => (string)($c['user_id'] ?? ''),     // 기프티쇼 비즈 회원 ID
-        'dev'       => (bool)($c['dev'] ?? true),         // 개발환경이면 true
-        'gubun'     => (string)($c['gubun'] ?? 'I'),      // Y 핀번호 / N MMS / I 바코드이미지
+        'auth_code'   => (string)($c['auth_code'] ?? ''),   // 인증 Key
+        'token_key'   => (string)($c['token_key'] ?? ''),   // 인증 Token Key (그대로 전송)
+        'user_id'     => (string)($c['user_id'] ?? ''),     // 기프티쇼 비즈 회원 ID
+        'gubun'       => (string)($c['gubun'] ?? 'I'),      // Y 핀번호 / N MMS / I 바코드이미지
         'callback_no' => (string)($c['callback_no'] ?? ''),
+        // 발송 화면에 쓰는 우리 이미지 — 비즈 사이트에서 등록하고 받은 ID
+        'banner_id'   => (string)($c['banner_id'] ?? ''),
+        'template_id' => (string)($c['template_id'] ?? ''),
     ];
-}
-
-/** custom_auth_token — 인증키를 암호화 키로 AES-256-ECB 암호화한 값(base64) */
-function gs_token(): string
-{
-    $c = gs_config();
-    if ($c['auth_code'] === '' || $c['enc_key'] === '') {
-        throw new RuntimeException('giftishow auth_code/enc_key 가 config.php 에 없습니다');
-    }
-    if (strlen($c['enc_key']) !== 32) {
-        throw new RuntimeException('giftishow enc_key 는 32바이트여야 합니다(현재 ' . strlen($c['enc_key']) . ')');
-    }
-    $enc = openssl_encrypt($c['auth_code'], 'aes-256-ecb', $c['enc_key'], OPENSSL_RAW_DATA);
-    if ($enc === false) throw new RuntimeException('인증 토큰 생성 실패');
-    return base64_encode($enc);
 }
 
 /**
@@ -66,14 +52,17 @@ function gs_token(): string
 function gs_call(string $apiCode, string $path, array $params = [], ?int $timeout = null): array
 {
     $c = gs_config();
+    if ($c['auth_code'] === '' || $c['token_key'] === '') {
+        throw new RuntimeException('giftishow auth_code/token_key 가 config.php 에 없습니다');
+    }
     $auth = [
         'api_code'          => $apiCode,
         'custom_auth_code'  => $c['auth_code'],
-        'custom_auth_token' => gs_token(),
-        'dev_yn'            => $c['dev'] ? 'Y' : 'N',
-        'dev_flag'          => $c['dev'] ? 'Y' : 'N',
+        'custom_auth_token' => $c['token_key'],
+        'dev_yn'            => 'N',
     ];
-    $body = http_build_query($auth + $params, '', '&', PHP_QUERY_RFC3986);
+    // form-urlencoded 규격대로 공백은 + 로 보낸다(RFC3986 은 %20 이 되어 MMS 본문이 어긋난다)
+    $body = http_build_query($auth + $params);
 
     $ch = curl_init(GS_BASE . $path);
     curl_setopt_array($ch, [
@@ -85,11 +74,6 @@ function gs_call(string $apiCode, string $path, array $params = [], ?int $timeou
         CURLOPT_HTTPHEADER     => [
             'Content-Type: application/x-www-form-urlencoded; charset=utf-8',
             'Accept: application/json',
-            'api_code: ' . $apiCode,
-            'custom_auth_code: ' . $auth['custom_auth_code'],
-            'custom_auth_token: ' . $auth['custom_auth_token'],
-            'dev_yn: ' . $auth['dev_yn'],
-            'dev_flag: ' . $auth['dev_flag'],
         ],
     ]);
     $raw  = curl_exec($ch);
@@ -156,6 +140,8 @@ function gs_send(string $trId, string $goodsCode, string $phoneNo, string $title
         'mms_title'   => mb_substr($title, 0, 10),      // 규격: 10자 초과 불가
         'mms_msg'     => $msg,
         'gubun'       => $c['gubun'],
+        'banner_id'   => $c['banner_id'],
+        'template_id' => $c['template_id'],
     ], static fn($v) => $v !== null && $v !== ''), GS_SEND_TIMEOUT);
 }
 
