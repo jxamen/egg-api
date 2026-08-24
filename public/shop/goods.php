@@ -19,6 +19,7 @@ $q     = trim((string)($_GET['q'] ?? ''));
 // kind: ''(기본) 기프티콘 목록 — 네이버페이 포인트 쿠폰은 뺀다(지갑의 전용 전환 화면에서만 다룬다,
 //       상점에 섞이면 남의 상품권을 되파는 것처럼 보인다) / 'npay' 네이버페이 포인트 쿠폰만
 $kind  = trim((string)($_GET['kind'] ?? ''));
+$cat   = trim((string)($_GET['cat'] ?? ''));          // 카테고리(type_dtl) 필터 — 앱 칩이 서버로 거른다
 
 $sql  = "SELECT goods_code, goods_name, brand_name, affiliate, sale_price, img_s, img_b, valid_days, type_dtl
          FROM gs_goods WHERE state_cd = 'SALE'";
@@ -39,6 +40,7 @@ if ($kind === 'npay') {
 if ($max > 0) { $sql .= ' AND sale_price <= ?';                       $args[] = $max; }
 if ($min > 0) { $sql .= ' AND sale_price >= ?';                       $args[] = $min; }
 if ($q !== '') { $sql .= ' AND (goods_name LIKE ? OR brand_name LIKE ?)'; $args[] = "%$q%"; $args[] = "%$q%"; }
+if ($cat !== '') { $sql .= ' AND type_dtl = ?';                        $args[] = $cat; }
 // 네이버페이는 권종(금액) 순으로 보여야 전환 화면의 금액 선택이 자연스럽다
 $sql .= ' ORDER BY sale_price, goods_name LIMIT ' . $limit;
 
@@ -59,9 +61,17 @@ $items = array_map(static fn(array $g) => [
 
 $synced = (int)(egg_db()->query('SELECT MAX(synced_at) t FROM gs_goods')->fetch()['t'] ?? 0);
 
+// 카테고리 목록 — 칩은 전체 카탈로그 기준이어야 한다(이번 페이지 100건 기준이면 칩이 뒤죽박죽).
+// 상품 수 내림차순: 큰 종류가 앞에 온다. 네이버페이 계열은 기본 목록과 같은 이유로 뺀다.
+$cats = $kind === 'npay' ? [] : array_column(egg_db()->query(
+    "SELECT type_dtl c, COUNT(*) n FROM gs_goods
+     WHERE state_cd = 'SALE' AND type_dtl <> '' AND NOT $npay
+     GROUP BY type_dtl ORDER BY n DESC")->fetchAll(), 'c');
+
 egg_json(200, [
     'ok'       => true,
     'count'    => count($items),
     'syncedAt' => $synced ?: null,
+    'cats'     => $cats,
     'items'    => $items,
 ]);
