@@ -119,9 +119,19 @@ function egg_log(bool $ok, string $reason, ?string $userId, string $qs): void
 }
 
 /** JSON 응답 후 종료 */
+/** CORS — 앱(네이티브)은 무관하지만 웹 빌드(Expo web)가 다른 오리진에서 부른다.
+ *  X-Egg-Key 커스텀 헤더 때문에 브라우저가 preflight(OPTIONS)를 먼저 보낸다. */
+function egg_cors(): void
+{
+    header('Access-Control-Allow-Origin: *');
+    header('Access-Control-Allow-Headers: X-Egg-Key, Content-Type');
+    header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
+}
+
 function egg_json(int $code, array $body): never
 {
     http_response_code($code);
+    egg_cors();
     header('Content-Type: application/json; charset=utf-8');
     header('Cache-Control: no-store');
     echo json_encode($body, JSON_UNESCAPED_UNICODE);
@@ -131,6 +141,12 @@ function egg_json(int $code, array $body): never
 /** 앱 전용 엔드포인트 보호 — 실제 회원 세션이 붙기 전까지 쓰는 임시 앱 키 */
 function egg_require_app_key(): void
 {
+    // preflight 는 키 없이 온다 — 검사 전에 빈 응답으로 통과시킨다
+    if (($_SERVER['REQUEST_METHOD'] ?? '') === 'OPTIONS') {
+        egg_cors();
+        http_response_code(204);
+        exit;
+    }
     $cfg = egg_config();
     $key = $cfg['app_key'] ?? '';
     $got = $_SERVER['HTTP_X_EGG_KEY'] ?? '';
