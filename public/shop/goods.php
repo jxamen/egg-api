@@ -13,6 +13,7 @@ require_once __DIR__ . '/../../src/bootstrap.php';
 egg_require_app_key();
 
 $max   = max(0, (int)($_GET['max'] ?? 0));            // 이 금액 이하만 (0 이면 전체)
+$min   = max(0, (int)($_GET['min'] ?? 0));            // 이 금액 이상만 (0 이면 제한 없음)
 $limit = min(100, max(1, (int)($_GET['limit'] ?? 40)));
 $q     = trim((string)($_GET['q'] ?? ''));
 // kind: ''(기본) 기프티콘 목록 — 네이버페이 포인트 쿠폰은 뺀다(지갑의 전용 전환 화면에서만 다룬다,
@@ -36,6 +37,7 @@ if ($kind === 'npay') {
     $sql .= " AND NOT $npay";
 }
 if ($max > 0) { $sql .= ' AND sale_price <= ?';                       $args[] = $max; }
+if ($min > 0) { $sql .= ' AND sale_price >= ?';                       $args[] = $min; }
 if ($q !== '') { $sql .= ' AND (goods_name LIKE ? OR brand_name LIKE ?)'; $args[] = "%$q%"; $args[] = "%$q%"; }
 // 네이버페이는 권종(금액) 순으로 보여야 전환 화면의 금액 선택이 자연스럽다
 $sql .= ' ORDER BY sale_price, goods_name LIMIT ' . $limit;
