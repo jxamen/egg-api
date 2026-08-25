@@ -114,6 +114,12 @@ if ($q === 'goods') {
         'suspended' => (int)$sus['c'], 'byType' => $byType, 'byBrand' => $byBrand]);
 }
 
+if ($q === 'bizraw') {
+    // 비즈머니 원본 응답 — 규격서와 실제 응답 키가 다를 때 확인용(admin_key 게이트)
+    try { egg_json(200, ['ok' => true, 'raw' => gs_bizmoney()['raw']]); }
+    catch (Throwable $e) { egg_json(500, ['ok' => false, 'error' => $e->getMessage()]); }
+}
+
 if ($q === 'sync') {
     @set_time_limit(600);
     $max = max(0, (int)($_GET['max'] ?? 0));
