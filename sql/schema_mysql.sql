@@ -174,6 +174,7 @@ CREATE TABLE IF NOT EXISTS `point_ledger` (
 -- 공지사항 (앱 G-04/G-05). 앱 주석에도 "공지는 어드민이 발행한다" 고 적혀 있다.
 CREATE TABLE IF NOT EXISTS `notice` (
   `id`           BIGINT NOT NULL AUTO_INCREMENT,
+  `category`     VARCHAR(16) NOT NULL DEFAULT 'svc',   -- svc(서비스) / evt(이벤트) — 앱 공지 탭
   `title`        VARCHAR(191) NOT NULL,
   `body`         MEDIUMTEXT NOT NULL,
   `pinned`       TINYINT NOT NULL DEFAULT 0,
@@ -182,7 +183,8 @@ CREATE TABLE IF NOT EXISTS `notice` (
   `created_at`   BIGINT NOT NULL,
   `updated_at`   BIGINT DEFAULT NULL,
   PRIMARY KEY (`id`),
-  KEY `ix_notice_pub` (`published`, `published_at`)
+  KEY `ix_notice_pub` (`published`, `published_at`),
+  KEY `ix_notice_cat` (`category`, `published`, `id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- 자주 묻는 질문 (앱 G-06). category 는 앱의 탭 값(earn/exch/account/etc)을 그대로 쓴다.
