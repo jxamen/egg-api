@@ -11,7 +11,7 @@ $bizno   = legal_val($co['bizno']);
 $email   = legal_val($co['email']);
 $officer = legal_val($co['officer']);
 
-legal_page('개인정보처리방침', <<<HTML
+$fallback = <<<HTML
 <p>{$company}(이하 "회사")는 이용자의 개인정보를 중요하게 생각하며, 「개인정보 보호법」 등 관련 법령을 준수합니다.
 본 방침은 회사가 제공하는 모바일 애플리케이션 <strong>꼬꼬농장</strong>(이하 "서비스")에 적용됩니다.</p>
 
@@ -122,4 +122,6 @@ iOS 는 앱 최초 실행 시 <strong>앱 추적 허용 여부</strong>를 묻�
 <h2>12. 방침의 변경</h2>
 <p>본 방침이 변경되는 경우 시행일 7일 전(이용자에게 불리한 변경은 30일 전)부터 앱 공지사항을 통해 알립니다.</p>
 <p>시행일: 2026년 9월 1일</p>
-HTML);
+HTML;
+
+legal_page('개인정보처리방침', legal_db_body('privacy') ?? $fallback);

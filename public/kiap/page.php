@@ -1,6 +1,6 @@
 <?php
 /**
- * GET /auth/page?uid=&ret= — 앱 WebBrowser(openAuthSessionAsync)가 여는 간편인증 페이지.
+ * GET /kiap/page?uid=&ret= — 앱 WebBrowser(openAuthSessionAsync)가 여는 간편인증 페이지.
  * kiap.js(자체 호스팅)를 iframe 모드로 띄우고, 완료되면 콜백이 ret 스킴으로 복귀시킨다.
  * 자격증명은 서버가 렌더 시점에 심는다 — 앱 번들에는 어떤 키도 실리지 않는다.
  */
@@ -49,7 +49,7 @@ $js = json_encode([
     'host'        => $cfg['host'],
     'clientId'    => $cfg['client_id'],
     'accessToken' => $cfg['access_token'],
-    'callbackUrl' => $base . '/auth/kiap-callback?sid=' . $sid,
+    'callbackUrl' => $base . '/kiap/callback?sid=' . $sid,
     'cancelUrl'   => $ret . (str_contains($ret, '?') ? '&' : '?') . 'ok=0&reason=CANCELED',
 ], JSON_UNESCAPED_SLASHES);
 header('Content-Type: text/html; charset=utf-8');
@@ -76,7 +76,7 @@ header('Content-Type: text/html; charset=utf-8');
   /* iOS 100vh 가 툴바를 포함해 인증창 하단이 잘린다 — dvh 로 보정(insurance-db LPLG-3170) */
   #kiap-sass { height:100dvh !important; }
 </style>
-<script src="/auth/kiap.js"></script>
+<script src="/kiap/kiap.js"></script>
 </head>
 <body>
 <h1>간편인증으로 본인확인</h1>

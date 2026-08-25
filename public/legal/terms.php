@@ -7,7 +7,7 @@ $co = legal_company();
 $company = legal_val($co['name']);
 $email   = legal_val($co['email']);
 
-legal_page('서비스 이용약관', <<<HTML
+$fallback = <<<HTML
 <h2>제1조 (목적)</h2>
 <p>본 약관은 {$company}(이하 "회사")가 제공하는 모바일 애플리케이션 <strong>꼬꼬농장</strong>(이하 "서비스")의
 이용 조건과 절차, 회사와 이용자의 권리·의무 및 책임 사항을 정함을 목적으로 합니다.</p>
@@ -100,4 +100,6 @@ legal_page('서비스 이용약관', <<<HTML
 「민사소송법」이 정한 관할 법원에 소를 제기할 수 있습니다.</p>
 
 <p>시행일: 2026년 9월 1일</p>
-HTML);
+HTML;
+
+legal_page('서비스 이용약관', legal_db_body('terms') ?? $fallback);

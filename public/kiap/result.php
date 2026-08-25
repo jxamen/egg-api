@@ -1,6 +1,6 @@
 <?php
 /**
- * GET /auth/result?sid=&t= — 앱이 1회용 토큰으로 인증 결과(이름·휴대폰)를 회수한다.
+ * GET /kiap/result?sid=&t= — 앱이 1회용 토큰으로 인증 결과(이름·휴대폰)를 회수한다.
  * 헤더 X-Egg-Key(앱 키) + 세션의 result_token 이중 잠금. 회수하면 consumed.
  */
 declare(strict_types=1);

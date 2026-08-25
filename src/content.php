@@ -23,8 +23,8 @@ function egg_notices(?string $cat = null, ?int $before = null, int $limit = 20):
 {
     $limit = max(1, min(50, $limit));
     $db = egg_db();
-    $where = ['published = 1'];
-    $args  = [];
+    $where = ['app = ?', 'published = 1'];
+    $args  = [egg_app()];
     if ($cat !== null && $cat !== '' && $cat !== 'all') { $where[] = 'category = ?'; $args[] = $cat; }
     if ($before !== null && $before > 0)                { $where[] = 'id < ?';       $args[] = $before; }
 
@@ -48,8 +48,8 @@ function egg_notices(?string $cat = null, ?int $before = null, int $limit = 20):
 
 function egg_notice(int $id): ?array
 {
-    $st = egg_db()->prepare('SELECT * FROM notice WHERE id = ? AND published = 1');
-    $st->execute([$id]);
+    $st = egg_db()->prepare('SELECT * FROM notice WHERE id = ? AND app = ? AND published = 1');
+    $st->execute([$id, egg_app()]);
     $r = $st->fetch();
     if (!$r) return null;
     return [
@@ -67,11 +67,12 @@ function egg_faqs(?string $cat = null): array
     $db = egg_db();
     if ($cat !== null && $cat !== '' && $cat !== 'all') {
         $st = $db->prepare('SELECT id, category, question, answer FROM faq
-                            WHERE published = 1 AND category = ? ORDER BY sort_order, id');
-        $st->execute([$cat]);
+                            WHERE app = ? AND published = 1 AND category = ? ORDER BY sort_order, id');
+        $st->execute([egg_app(), $cat]);
     } else {
-        $st = $db->query('SELECT id, category, question, answer FROM faq
-                          WHERE published = 1 ORDER BY sort_order, id');
+        $st = $db->prepare('SELECT id, category, question, answer FROM faq
+                            WHERE app = ? AND published = 1 ORDER BY sort_order, id');
+        $st->execute([egg_app()]);
     }
     $out = [];
     foreach ($st->fetchAll() as $r) {
@@ -87,9 +88,9 @@ function egg_faqs(?string $cat = null): array
 function egg_legal(string $kind): ?array
 {
     $st = egg_db()->prepare('SELECT * FROM legal_doc
-                             WHERE kind = ? AND published = 1 AND effective_at <= ?
+                             WHERE app = ? AND kind = ? AND published = 1 AND effective_at <= ?
                              ORDER BY effective_at DESC, id DESC LIMIT 1');
-    $st->execute([$kind, time()]);
+    $st->execute([egg_app(), $kind, time()]);
     $r = $st->fetch();
     if (!$r) return null;
     return [
@@ -114,9 +115,9 @@ function egg_inquiry_create(string $userId, string $type, string $title, string 
     $st->execute([$userId, time() - 60]);
     if ((int)$st->fetchColumn() > 0) return ['ok' => false, 'error' => 'too_soon'];
 
-    $db->prepare('INSERT INTO inquiry (user_id, type, title, body, status, created_at)
-                  VALUES (?,?,?,?,?,?)')
-       ->execute([$userId, $type !== '' ? $type : null, mb_substr($title, 0, 100), $body, 'open', time()]);
+    $db->prepare('INSERT INTO inquiry (app, user_id, type, title, body, status, created_at)
+                  VALUES (?,?,?,?,?,?,?)')
+       ->execute([egg_app(), $userId, $type !== '' ? $type : null, mb_substr($title, 0, 100), $body, 'open', time()]);
 
     return ['ok' => true, 'id' => (int)$db->lastInsertId()];
 }

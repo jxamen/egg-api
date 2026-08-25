@@ -276,8 +276,10 @@ function egg_member_upsert(string $provider, array $profile): array
     $socialId = (string)($profile['id'] ?? '');
     if ($socialId === '') throw new RuntimeException('social_id 없음');
 
-    $st = $db->prepare('SELECT * FROM member WHERE provider = ? AND social_id = ?');
-    $st->execute([$provider, $socialId]);
+    // 회원은 앱 단위다 — 같은 카카오 계정이라도 앱이 다르면 다른 회원으로 본다
+    $app = egg_app();
+    $st = $db->prepare('SELECT * FROM member WHERE app = ? AND provider = ? AND social_id = ?');
+    $st->execute([$app, $provider, $socialId]);
     $m = $st->fetch();
     $now = time();
 
@@ -290,12 +292,12 @@ function egg_member_upsert(string $provider, array $profile): array
            ->execute([$now, $profile['email'] ?? null, $profile['avatar'] ?? null, $m['id']]);
     } else {
         $id = 'mem_' . bin2hex(random_bytes(8));
-        $db->prepare('INSERT INTO member (id, provider, social_id, email, name, avatar_url, created_at, last_login_at)
-                      VALUES (?,?,?,?,?,?,?,?)')
-           ->execute([$id, $provider, $socialId, $profile['email'] ?? null, $profile['name'] ?? null,
+        $db->prepare('INSERT INTO member (id, app, provider, social_id, email, name, avatar_url, created_at, last_login_at)
+                      VALUES (?,?,?,?,?,?,?,?,?)')
+           ->execute([$id, $app, $provider, $socialId, $profile['email'] ?? null, $profile['name'] ?? null,
                       $profile['avatar'] ?? null, $now, $now]);
     }
-    $st->execute([$provider, $socialId]);
+    $st->execute([$app, $provider, $socialId]);
     return $st->fetch();
 }
 

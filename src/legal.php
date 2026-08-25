@@ -34,6 +34,23 @@ function legal_val(string $v): string
     return $v !== '' ? htmlspecialchars($v, ENT_QUOTES) : '<span class="todo">확인 필요</span>';
 }
 
+/**
+ * DB(legal_doc)에 시행 중인 본문이 있으면 그것을 쓴다.
+ *
+ * 같은 문서를 웹 페이지와 앱 화면에서 따로 들고 있으면 반드시 어긋난다. 정본은 DB 한 곳이고,
+ * 여기와 앱은 받아서 그리기만 한다. DB 가 비었거나 아직 안 붙었으면 아래 하드코딩으로 떨어진다.
+ */
+function legal_db_body(string $kind): ?string
+{
+    try {
+        require_once __DIR__ . '/content.php';
+        $d = egg_legal($kind);
+        return ($d && ($d['body'] ?? '') !== '') ? $d['body'] : null;
+    } catch (Throwable $e) {
+        return null;   // DB 가 죽어도 약관 페이지는 떠야 한다(심사·검수가 이 URL 을 본다)
+    }
+}
+
 /** 문서 공통 껍데기 — 앱 색(#E8760F)과 같은 톤으로 최소한만 꾸민다 */
 function legal_page(string $title, string $bodyHtml): never
 {

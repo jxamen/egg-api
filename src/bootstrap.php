@@ -163,6 +163,20 @@ function egg_require_app_key(): void
     }
 }
 
+/**
+ * 어느 앱의 데이터인가.
+ *
+ * 서비스가 앱 하나로 끝나지 않는다 — 공지·FAQ·약관·회원이 앱마다 따로 관리돼야 한다.
+ * 지금은 앱이 하나라 config 기본값을 쓰고, 조회는 app 파라미터로 고를 수 있게 열어 둔다.
+ * **앱이 늘면 앱 키마다 앱을 매핑해 이 값을 서버가 정하도록 바꿀 것**(파라미터는 위조된다).
+ */
+function egg_app(): string
+{
+    $a = (string)($_GET['app'] ?? ($_POST['app'] ?? ''));
+    if ($a !== '' && preg_match('/^[a-z0-9_-]{2,32}$/', $a)) return $a;
+    return (string)(egg_config()['app'] ?? 'kkokkofarm');
+}
+
 /** KST 기준 오늘 0시 (하루 한도 계산용) */
 function egg_today_start(): int
 {

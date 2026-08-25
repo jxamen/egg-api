@@ -1,6 +1,6 @@
 <?php
 /**
- * POST /auth/kiap-callback?sid= — KIAP 게이트웨이가 인증 종료 후 form POST 로 부른다(iframe 내부).
+ * POST /kiap/callback?sid= — KIAP 게이트웨이가 인증 종료 후 form POST 로 부른다(iframe 내부).
  * 검증은 insurance-db 의 4단계를 그대로: ①KIAP 성공코드 ②getResult+바인딩 ③복호화·CI fail-closed ④CAS.
  * 어떤 실패든 사유 코드만 남기고 앱 스킴으로 복귀시킨다 — 평문 PII·키·암호문은 로그에도 응답에도 없다.
  */
