@@ -68,10 +68,12 @@ $cats = $kind === 'npay' ? [] : array_column(egg_db()->query(
      WHERE state_cd = 'SALE' AND type_dtl <> '' AND NOT $npay
      GROUP BY type_dtl ORDER BY n DESC")->fetchAll(), 'c');
 
+// 상품 카탈로그는 하루 한 번 동기화되고 사용자와 무관한 목록이라 엣지에 캐시한다(600초).
+// 사용자가 늘어도 같은 조합의 목록 요청은 원본까지 오지 않는다.
 egg_json(200, [
     'ok'       => true,
     'count'    => count($items),
     'syncedAt' => $synced ?: null,
     'cats'     => $cats,
     'items'    => $items,
-]);
+], 600);

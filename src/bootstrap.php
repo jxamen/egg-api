@@ -136,12 +136,19 @@ function egg_cors(): void
     header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
 }
 
-function egg_json(int $code, array $body): never
+function egg_json(int $code, array $body, int $cacheSec = 0): never
 {
     http_response_code($code);
     egg_cors();
     header('Content-Type: application/json; charset=utf-8');
-    header('Cache-Control: no-store');
+    // 기본은 캐시 금지. 상품 목록처럼 사용자와 무관하고 자주 안 바뀌는 응답만 $cacheSec 를 준다.
+    // s-maxage 는 Cloudflare 엣지용(브라우저는 max-age=0 으로 항상 재검증) — 사용자 수가 늘어도
+    // 같은 목록 요청이 서버까지 오지 않게 해 원본 부하를 줄인다.
+    if ($cacheSec > 0 && $code === 200) {
+        header('Cache-Control: public, max-age=0, s-maxage=' . $cacheSec);
+    } else {
+        header('Cache-Control: no-store');
+    }
     echo json_encode($body, JSON_UNESCAPED_UNICODE);
     exit;
 }
