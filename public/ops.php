@@ -55,6 +55,19 @@ if ($do === 'deploy') {
     egg_json($r['ok'] ? 200 : 500, ['ok' => $r['ok'], 'head' => head($root), 'log' => $r['out']]);
 }
 
+if ($do === 'set-admin-key') {
+    // 어드민 조회용 키 등록 — config.php 를 원격에서 못 고쳐 var/ 에 둔다(0600, 웹 접근 불가 경로)
+    $v = trim((string)($_GET['value'] ?? ''));
+    if (!preg_match('/^[A-Za-z0-9]{32,128}$/', $v)) {
+        egg_json(400, ['ok' => false, 'error' => 'value 는 영숫자 32~128자']);
+    }
+    @mkdir($root . '/var', 0700);
+    $f = $root . '/var/admin_key';
+    $ok = @file_put_contents($f, $v) !== false;
+    @chmod($f, 0600);
+    egg_json($ok ? 200 : 500, ['ok' => $ok]);
+}
+
 if ($do === 'sync') {
     @set_time_limit(600);
     $max = max(0, (int)($_GET['max'] ?? 0));
