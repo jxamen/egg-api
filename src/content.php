@@ -87,11 +87,22 @@ function egg_faqs(?string $cat = null): array
  */
 function egg_legal(string $kind): ?array
 {
-    $st = egg_db()->prepare('SELECT * FROM legal_doc
-                             WHERE app = ? AND kind = ? AND published = 1 AND effective_at <= ?
-                             ORDER BY effective_at DESC, id DESC LIMIT 1');
+    $db = egg_db();
+    $st = $db->prepare('SELECT * FROM legal_doc
+                        WHERE app = ? AND kind = ? AND published = 1 AND effective_at <= ?
+                        ORDER BY effective_at DESC, id DESC LIMIT 1');
     $st->execute([egg_app(), $kind, time()]);
     $r = $st->fetch();
+
+    // 아직 시행일이 오지 않은 문서뿐이면(출시 준비 기간) 가장 이른 것을 보여준다.
+    // 앱과 심사가 약관을 아예 못 보는 편이 더 문제다.
+    if (!$r) {
+        $st = $db->prepare('SELECT * FROM legal_doc
+                            WHERE app = ? AND kind = ? AND published = 1
+                            ORDER BY effective_at ASC, id ASC LIMIT 1');
+        $st->execute([egg_app(), $kind]);
+        $r = $st->fetch();
+    }
     if (!$r) return null;
     return [
         'kind'      => $r['kind'],
