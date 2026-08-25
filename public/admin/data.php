@@ -95,7 +95,7 @@ if ($q === 'adlogs') {
     $days = min(90, max(1, (int)($_GET['days'] ?? 30)));
     $from = strtotime('today') - ($days - 1) * 86400;
     // SQLite: localtime 로 일 단위 집계(서버 TZ 가 KST 가 아닐 수 있어 명시)
-    $st = $db->prepare("SELECT date(created_at, 'unixepoch', 'localtime') d,
+    $st = $db->prepare("SELECT " . egg_sql_date('created_at') . " d,
                                COUNT(*) c, COUNT(DISTINCT user_id) u,
                                SUM(CASE WHEN claimed_at IS NOT NULL THEN 1 ELSE 0 END) claimed
                         FROM ad_reward WHERE created_at>=? GROUP BY d ORDER BY d DESC");

@@ -164,6 +164,23 @@ function egg_require_app_key(): void
 }
 
 /**
+ * 드라이버마다 다른 SQL 조각. SQLite 와 MySQL 은 "있으면 무시/갱신" 구문이 서로 다르고
+ * 호환되는 표기가 없다 — 문자열로 바꿔치기하다 조용히 어긋나느니 여기서 한 번에 고른다.
+ */
+function egg_sql_insert_ignore(): string
+{
+    return (function_exists('egg_is_mysql') && egg_is_mysql()) ? 'INSERT IGNORE INTO' : 'INSERT OR IGNORE INTO';
+}
+
+/** unix 초 → 날짜 문자열(YYYY-MM-DD, KST). 일별 집계에 쓴다 */
+function egg_sql_date(string $col): string
+{
+    return (function_exists('egg_is_mysql') && egg_is_mysql())
+        ? "DATE(CONVERT_TZ(FROM_UNIXTIME($col), '+00:00', '+09:00'))"
+        : "date($col, 'unixepoch', 'localtime')";
+}
+
+/**
  * 어느 앱의 데이터인가.
  *
  * 서비스가 앱 하나로 끝나지 않는다 — 공지·FAQ·약관·회원이 앱마다 따로 관리돼야 한다.

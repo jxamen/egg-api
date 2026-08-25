@@ -180,17 +180,21 @@ function gs_sync(int $max = 0, ?callable $log = null): array
 {
     $size = 100; $start = 1; $seen = 0; $pages = 0;
     $db = egg_db();
-    $st = $db->prepare('INSERT INTO gs_goods
-        (goods_code, goods_name, brand_name, brand_code, affiliate, sale_price, discount_price,
-         img_s, img_b, valid_days, type_dtl, category1, state_cd, synced_at)
-        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)
-        ON CONFLICT(goods_code) DO UPDATE SET
-         goods_name = excluded.goods_name, brand_name = excluded.brand_name,
-         brand_code = excluded.brand_code, affiliate = excluded.affiliate,
-         sale_price = excluded.sale_price, discount_price = excluded.discount_price,
-         img_s = excluded.img_s, img_b = excluded.img_b, valid_days = excluded.valid_days,
-         type_dtl = excluded.type_dtl, category1 = excluded.category1,
-         state_cd = excluded.state_cd, synced_at = excluded.synced_at');
+    // 있으면 갱신 — SQLite 는 ON CONFLICT…excluded, MySQL 은 ON DUPLICATE KEY…VALUES() 다
+    $cols = 'goods_code, goods_name, brand_name, brand_code, affiliate, sale_price, discount_price,
+             img_s, img_b, valid_days, type_dtl, category1, state_cd, synced_at';
+    $upd  = ['goods_name','brand_name','brand_code','affiliate','sale_price','discount_price',
+             'img_s','img_b','valid_days','type_dtl','category1','state_cd','synced_at'];
+    if (function_exists('egg_is_mysql') && egg_is_mysql()) {
+        $set = implode(', ', array_map(fn($c) => "$c = VALUES($c)", $upd));
+        $sql = "INSERT INTO gs_goods ($cols) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                ON DUPLICATE KEY UPDATE $set";
+    } else {
+        $set = implode(', ', array_map(fn($c) => "$c = excluded.$c", $upd));
+        $sql = "INSERT INTO gs_goods ($cols) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                ON CONFLICT(goods_code) DO UPDATE SET $set";
+    }
+    $st = $db->prepare($sql);
 
     $now = time();
     while (true) {

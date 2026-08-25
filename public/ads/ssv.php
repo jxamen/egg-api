@@ -53,7 +53,7 @@ try {
     if ((int)$st->fetch()['c'] >= DAILY_LIMIT) ssv_done(200, false, 'daily_limit', $userId, $qs);
 
     // 지급 — transaction_id 가 기본키라 중복은 여기서 걸린다
-    $ins = $db->prepare('INSERT OR IGNORE INTO ad_reward
+    $ins = $db->prepare(egg_sql_insert_ignore() . ' ad_reward
         (transaction_id, user_id, ad_unit, reward_item, reward_amount, custom_data, created_at)
         VALUES (?,?,?,?,?,?,?)');
     $ins->execute([

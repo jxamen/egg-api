@@ -83,7 +83,7 @@ $mine = $db->prepare('SELECT ci_hash FROM kiap_ci WHERE uid = ? AND ci_hash != ?
 $mine->execute([$uid, $ciHash]);
 if ($mine->fetch()) kiap_cb_fail($db, $row, 'UID_CI_CONFLICT');   // 같은 계정에 다른 사람 인증 시도
 if (!$owner) {
-    $db->prepare('INSERT OR IGNORE INTO kiap_ci (ci_hash, uid, verified_at) VALUES (?,?,?)')
+    $db->prepare(egg_sql_insert_ignore() . ' kiap_ci (ci_hash, uid, verified_at) VALUES (?,?,?)')
        ->execute([$ciHash, $uid, time()]);
 }
 
