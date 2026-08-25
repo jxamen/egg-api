@@ -91,8 +91,10 @@ function egg_points_add(string $userId, int $delta, string $kind, string $title,
         return ['ok' => true, 'balance' => $balance];
     } catch (PDOException $e) {
         if ($db->inTransaction()) $db->rollBack();
-        // UNIQUE(kind, ref) 위반 = 같은 근거로 이미 처리됨. 실패가 아니라 "이미 됨" 으로 답한다
-        if (str_contains($e->getMessage(), 'UNIQUE')) {
+        // UNIQUE(kind, ref) 위반 = 같은 근거로 이미 처리됨. 실패가 아니라 "이미 됨" 으로 답한다.
+        // 메시지는 드라이버마다 다르므로(SQLite 'UNIQUE constraint failed' / MySQL 'Duplicate entry')
+        // 표준 SQLSTATE 23000(무결성 제약 위반)으로 본다.
+        if ((string)$e->getCode() === '23000') {
             return ['ok' => true, 'balance' => egg_points_balance($userId), 'duplicated' => true];
         }
         return ['ok' => false, 'error' => 'db'];
