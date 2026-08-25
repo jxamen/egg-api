@@ -43,8 +43,12 @@ if ($q === 'dashboard') {
     $ad7 = $one('SELECT COUNT(*) c, COUNT(DISTINCT user_id) u FROM ad_reward WHERE created_at>=?', [$now - 7*86400]);
     $ad30 = $one('SELECT COUNT(*) c, COUNT(DISTINCT user_id) u FROM ad_reward WHERE created_at>=?', [$now - 30*86400]);
     $ssvToday = $one('SELECT SUM(ok) ok, COUNT(*)-SUM(ok) rej FROM ssv_log WHERE at>=?', [$dayStart]);
-    $biz = null;
-    try { $b = gs_bizmoney(); $biz = $b['balance'] ?? ($b['raw']['balance'] ?? null); } catch (Throwable $e) {}
+    $biz = null; $bizErr = null;
+    try {
+        $b = gs_bizmoney();   // 0301 — balance 는 응답 최상위(raw)에 온다
+        $biz = $b['raw']['balance'] ?? null;
+        if ($biz === null) $bizErr = trim(($b['code'] ?? '').' '.($b['message'] ?? '')) ?: '응답에 balance 없음';
+    } catch (Throwable $e) { $bizErr = $e->getMessage(); }
     egg_json(200, [
         'ok' => true,
         'goods' => ['count' => (int)$goods['c'], 'syncedAt' => (int)$goods['t'] ?: null],
@@ -55,6 +59,7 @@ if ($q === 'dashboard') {
         'ad30d' => ['count' => (int)$ad30['c'], 'users' => (int)$ad30['u']],
         'ssvToday' => ['ok' => (int)($ssvToday['ok'] ?? 0), 'rejected' => (int)($ssvToday['rej'] ?? 0)],
         'bizmoney' => $biz,
+        'bizmoneyError' => $bizErr,
     ]);
 }
 
