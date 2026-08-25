@@ -8,6 +8,8 @@ RewriteRule ^shop/goods/?$   /shop/goods.php   [L]
 RewriteRule ^shop/order/?$   /shop/order.php   [L]
 RewriteRule ^ops/?$          /ops.php          [L]
 RewriteRule ^admin/data/?$   /admin/data.php   [L]
+# 표준 앱 어댑터 v1 — 중앙 어드민 전용(플랫폼 설계 규칙 §11)
+RewriteRule ^v1/(.+)$        /v1.php?__p=$1    [L,QSA]
 # KICA(KIAP) 간편인증 — /kiap/* (SNS 로그인 /auth/* 와 네임스페이스 분리)
 RewriteRule ^kiap/status/?$   /kiap/status.php   [L]
 RewriteRule ^kiap/page/?$     /kiap/page.php     [L]
