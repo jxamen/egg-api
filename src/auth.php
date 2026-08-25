@@ -94,6 +94,9 @@ function egg_auth_schema(): PDO
     $db = egg_db();
     if ($done) return $db;
 
+    // MySQL 에서는 스키마를 db_mysql.php 가 한곳에서 만든다(아래 DDL 은 SQLite 전용 문법이다)
+    if (function_exists('egg_is_mysql') && egg_is_mysql()) { $done = true; return $db; }
+
     // 회원 — 식별자는 이메일이 아니라 (provider, social_id) 다.
     // 카카오 이메일은 선택 동의라 아예 안 올 수 있고, 애플은 가린 주소가 온다.
     $db->exec('CREATE TABLE IF NOT EXISTS member (

@@ -34,6 +34,14 @@ function egg_db(): PDO
     static $db = null;
     if ($db !== null) return $db;
 
+    // config.php 에 'db' 가 있으면 MySQL 을 쓴다. 없으면 예전처럼 SQLite —
+    // 전환 도중에 다른 작업이 깨지지 않게 두 경로를 함께 둔다(사정은 src/db_mysql.php).
+    $mysql = egg_config()['db'] ?? null;
+    if (is_array($mysql) && ($mysql['name'] ?? '') !== '') {
+        require_once __DIR__ . '/db_mysql.php';
+        return $db = egg_mysql_connect($mysql);
+    }
+
     if (!is_dir(EGG_VAR)) mkdir(EGG_VAR, 0775, true);
     $db = new PDO('sqlite:' . EGG_DB, null, null, [
         PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
