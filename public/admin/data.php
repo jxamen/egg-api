@@ -45,8 +45,9 @@ if ($q === 'dashboard') {
     $ssvToday = $one('SELECT SUM(ok) ok, COUNT(*)-SUM(ok) rej FROM ssv_log WHERE at>=?', [$dayStart]);
     $biz = null; $bizErr = null;
     try {
-        $b = gs_bizmoney();   // 0301 — balance 는 응답 최상위(raw)에 온다
-        $biz = $b['raw']['balance'] ?? null;
+        $b = gs_bizmoney();   // 0301 — 실측 응답은 result.balance (문자열)
+        $v = $b['result']['balance'] ?? ($b['raw']['balance'] ?? null);
+        $biz = $v === null ? null : (int)$v;
         if ($biz === null) $bizErr = trim(($b['code'] ?? '').' '.($b['message'] ?? '')) ?: '응답에 balance 없음';
     } catch (Throwable $e) { $bizErr = $e->getMessage(); }
     egg_json(200, [
