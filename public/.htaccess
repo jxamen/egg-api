@@ -1,8 +1,14 @@
 RewriteEngine On
+# /api 접두 — kkokkofarm.j-curve.co.kr/api/... 도메인 통합 경로. 무접두 경로도 병행 유지(구버전 앱).
+RewriteRule ^api/(.*)$       /$1               [L]
 RewriteRule ^ads/ssv/?$      /ads/ssv.php      [L]
 RewriteRule ^ads/pending/?$  /ads/pending.php  [L]
 RewriteRule ^ads/claim/?$    /ads/claim.php    [L]
 RewriteRule ^shop/goods/?$   /shop/goods.php   [L]
 RewriteRule ^shop/order/?$   /shop/order.php   [L]
 RewriteRule ^ops/?$          /ops.php          [L]
-RewriteRule ^admin/data/?$ /admin/data.php [L]
+RewriteRule ^admin/data/?$   /admin/data.php   [L]
+RewriteRule ^auth/status/?$        /auth/status.php        [L]
+RewriteRule ^auth/page/?$          /auth/page.php          [L]
+RewriteRule ^auth/kiap-callback/?$ /auth/kiap-callback.php [L]
+RewriteRule ^auth/result/?$        /auth/result.php        [L]

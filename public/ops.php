@@ -55,6 +55,21 @@ if ($do === 'deploy') {
     egg_json($r['ok'] ? 200 : 500, ['ok' => $r['ok'], 'head' => head($root), 'log' => $r['out']]);
 }
 
+if ($do === 'set-kiap') {
+    // KIAP 자격증명 등록 — config.php 를 원격에서 못 고쳐 var/kiap.json 에 둔다(0600)
+    $host = trim((string)($_GET['host'] ?? 'https://kiap.signgate.com'));
+    $cid  = trim((string)($_GET['client_id'] ?? ''));
+    $tok  = trim((string)($_GET['access_token'] ?? ''));
+    if (!preg_match('#^https://[a-z0-9.-]+$#', $host) || $cid === '' || $tok === '') {
+        egg_json(400, ['ok' => false, 'error' => 'host(https)·client_id·access_token 필요']);
+    }
+    @mkdir($root . '/var', 0700);
+    $f = $root . '/var/kiap.json';
+    $ok = @file_put_contents($f, json_encode(['host' => $host, 'client_id' => $cid, 'access_token' => $tok])) !== false;
+    @chmod($f, 0600);
+    egg_json($ok ? 200 : 500, ['ok' => $ok]);
+}
+
 if ($do === 'set-admin-key') {
     // 어드민 조회용 키 등록 — config.php 를 원격에서 못 고쳐 var/ 에 둔다(0600, 웹 접근 불가 경로)
     $v = trim((string)($_GET['value'] ?? ''));
