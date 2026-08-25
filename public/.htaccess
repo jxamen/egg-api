@@ -15,3 +15,7 @@ RewriteRule ^kiap/callback/?$ /kiap/callback.php [L]
 RewriteRule ^kiap/result/?$   /kiap/result.php   [L]
 # SNS 로그인 — /auth/* 전부를 auth.php 가 받는다(act 파라미터)
 RewriteRule ^auth/(.+)$       /auth.php?act=$1   [L,QSA]
+# 약관·개인정보처리방침 — 구글 OAuth 동의 화면·App Store 심사·네이버 검수가 공개 URL 을 요구한다
+RewriteRule ^legal/privacy/?$ /legal/privacy.php [L]
+RewriteRule ^legal/terms/?$   /legal/terms.php   [L]
+

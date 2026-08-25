@@ -27,10 +27,10 @@ const EGG_APPLE_KEYS  = EGG_VAR . '/apple-keys.json';
 /** 우리 서버의 콜백 주소 — 각 사 콘솔에 등록한 값과 한 글자도 달라선 안 된다 */
 function egg_redirect_uri(string $provider): string
 {
-    // 서비스 도메인(kkokkofarm.j-curve.co.kr)이 준비되면 config.php 의 base_url 만 바꾼다.
-    // 각 사 콘솔은 Redirect URI 를 여러 개 등록할 수 있으므로 두 주소를 함께 등록해 두면
-    // 무중단으로 옮겨 갈 수 있다.
-    $base = egg_config()['base_url'] ?? 'https://egg-api.j-curve.co.kr';
+    // 통합 도메인(docs/server-infra.md URL 규약). SNS 로그인은 /api 접두를 쓰지 않는다.
+    // 각 사 콘솔은 Redirect URI 를 여러 개 받으므로, vhost 가 붙기 전까지 쓰던 egg-api 주소도
+    // 함께 등록해 두면 도메인을 옮겨도 로그인이 끊기지 않는다.
+    $base = egg_config()['base_url'] ?? 'https://kkokkofarm.j-curve.co.kr';
     return rtrim($base, '/') . '/auth/callback/' . $provider;
 }
 
