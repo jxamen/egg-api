@@ -7,6 +7,8 @@ RewriteRule ^ads/claim/?$    /ads/claim.php    [L]
 RewriteRule ^shop/goods/?$   /shop/goods.php   [L]
 RewriteRule ^shop/order/?$   /shop/order.php   [L]
 RewriteRule ^ops/?$          /ops.php          [L]
+# 초대 링크 — /i/{code} 랑딩(앱 스킴 시도 → 미설치면 스토어)
+RewriteRule ^i/([A-Za-z0-9]+)/?$ /invite.php?code=$1 [L,QSA]
 RewriteRule ^admin/data/?$   /admin/data.php   [L]
 # 표준 앱 어댑터 v1 — 중앙 어드민 전용(플랫폼 설계 규칙 §11)
 RewriteRule ^v1/(.+)$        /v1.php?__p=$1    [L,QSA]
