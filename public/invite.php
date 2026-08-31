@@ -56,7 +56,9 @@ $reward = invite_reward_text();
 $desc = $reward !== ''
     ? '초대 링크로 시작하면 '.$reward.'를 바로 받아요. 닭을 키우고 알을 모아 포인트로 바꿔 보세요.'
     : '초대 링크로 시작하면 시작 선물을 바로 받아요. 닭을 키우고 알을 모아 포인트로 바꿔 보세요.';
-$ogimg = 'https://kkokkofarm.j-curve.co.kr/og-invite.png';
+// 뒤의 v 는 그림을 고쳤을 때 올린다 — 카카오·CF 가 주소별로 캐시해 두어
+// 파일만 바꾸면 한동안 옛 그림이 계속 나간다(2026-08-31 확인)
+$ogimg = 'https://kkokkofarm.j-curve.co.kr/og-invite.png?v=2';
 $ogurl = 'https://kkokkofarm.j-curve.co.kr/i/'.rawurlencode($code);
 
 header('Content-Type: text/html; charset=utf-8');
