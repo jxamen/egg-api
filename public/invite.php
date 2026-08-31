@@ -19,6 +19,46 @@ $scheme = 'kkokkofarm://invite?code=' . rawurlencode($code);
 $ios    = 'https://apps.apple.com/kr/app/id6804574363';
 $aos    = 'https://play.google.com/store/apps/details?id=kr.co.jcurve.eggfarm';
 
+/**
+ * 초대받은 사람이 받는 것 — 어드민 '친구 초대 보상' 이 원본이다.
+ * 공용 API 의 공개 설정을 읽어 쓰고, 못 읽으면 문구에서 숫자를 빼고 보여 준다
+ * (옛 숫자가 박혀 있으면 설정을 바꿔도 링크만 다른 약속을 하게 된다 — 2026-08-31 지시).
+ */
+function invite_reward_text(): string
+{
+    $cache = sys_get_temp_dir().'/kkokko-invite-reward.json';
+    if (is_readable($cache) && time() - filemtime($cache) < 600) {
+        $txt = (string) file_get_contents($cache);
+        if ($txt !== '') { return $txt; }
+    }
+
+    $txt = '';
+    $ctx = stream_context_create(['http' => [
+        'timeout' => 3,
+        'header' => "Accept: application/json\r\nX-App-Token: 7U4R3tn6Lb5YXDVNUlVxXxhHXbRVdNRejU18y4sT\r\n",
+    ]]);
+    $raw = @file_get_contents('https://api.j-curve.co.kr/v1/kkokkofarm/content/config/daily', false, $ctx);
+    $cfg = $raw ? (json_decode($raw, true)['config'] ?? []) : [];
+    if ($cfg) {
+        $parts = [];
+        if (($cfg['refeePoint'] ?? 0) > 0) { $parts[] = number_format((int) $cfg['refeePoint']).'P'; }
+        if (($cfg['refeeFeed'] ?? 0) > 0) { $parts[] = '사료 '.(int) $cfg['refeeFeed'].'개'; }
+        if (($cfg['refeeWater'] ?? 0) > 0) { $parts[] = '물 '.(int) $cfg['refeeWater'].'개'; }
+        if (($cfg['refeeVita'] ?? 0) > 0) { $parts[] = '영양제 '.(int) $cfg['refeeVita'].'개'; }
+        $txt = implode(' + ', $parts);
+    }
+    if ($txt !== '') { @file_put_contents($cache, $txt); }
+
+    return $txt;
+}
+
+$reward = invite_reward_text();
+$desc = $reward !== ''
+    ? '초대 링크로 시작하면 '.$reward.'를 바로 받아요. 닭을 키우고 알을 모아 포인트로 바꿔 보세요.'
+    : '초대 링크로 시작하면 시작 선물을 바로 받아요. 닭을 키우고 알을 모아 포인트로 바꿔 보세요.';
+$ogimg = 'https://kkokkofarm.j-curve.co.kr/og-invite.png';
+$ogurl = 'https://kkokkofarm.j-curve.co.kr/i/'.rawurlencode($code);
+
 header('Content-Type: text/html; charset=utf-8');
 header('Cache-Control: no-store');
 ?>
@@ -27,9 +67,22 @@ header('Cache-Control: no-store');
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>꼬꼬농장 초대</title>
+<title>꼬꼬농장 초대 — 함께 닭 키우고 포인트 받아요</title>
+<meta name="description" content="<?= htmlspecialchars($desc, ENT_QUOTES) ?>">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="꼬꼬농장">
+<meta property="og:locale" content="ko_KR">
 <meta property="og:title" content="꼬꼬농장에서 함께 닭 키워요! 🐔">
-<meta property="og:description" content="초대 링크로 시작하면 두 사람 모두 사료 3개를 받아요.">
+<meta property="og:description" content="<?= htmlspecialchars($desc, ENT_QUOTES) ?>">
+<meta property="og:url" content="<?= htmlspecialchars($ogurl, ENT_QUOTES) ?>">
+<meta property="og:image" content="<?= $ogimg ?>">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="꼬꼬농장 — 함께 닭 키우고 포인트 받아요">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="꼬꼬농장에서 함께 닭 키워요! 🐔">
+<meta name="twitter:description" content="<?= htmlspecialchars($desc, ENT_QUOTES) ?>">
+<meta name="twitter:image" content="<?= $ogimg ?>">
 <style>
   :root { color-scheme: light; }
   * { box-sizing: border-box; }
