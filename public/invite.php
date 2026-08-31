@@ -4,8 +4,9 @@
  *
  * 카톡·문자로 받은 사람이 열면:
  *  1) 앱이 깔려 있으면 앱 스킴(kkokkofarm://invite?code=…)으로 바로 열려 코드가 자동 등록된다.
- *  2) 안 깔려 있으면 스토어로 보낸다. 설치 후 첫 실행에서 코드를 자동으로 못 읽으므로
- *     이 화면이 코드를 **클립보드에 복사**해 두고, 크게 보여 주기도 한다.
+ *  2) 안 깔려 있으면 스토어로 보낸다. **설치 후 첫 실행에는 코드가 자동으로 들어가지 않는다**
+ *     (설치를 건너 온 경로를 앱이 알 방법이 없다). 그래서 코드를 크게 보여 주고
+ *     복사 버튼을 둔다 — 앱에서 추천인 코드 칸에 붙여넣는다.
  *
  * 서버가 코드를 검증하지 않는다 — 코드는 앱이 회원 ID 에서 만들고 앱이 확인한다.
  * 여기서는 형식(영문·숫자 4~12자)만 보고 그대로 넘긴다.
@@ -58,7 +59,7 @@ $desc = $reward !== ''
     : '초대 링크로 시작하면 시작 선물을 바로 받아요. 닭을 키우고 알을 모아 포인트로 바꿔 보세요.';
 // 뒤의 v 는 그림을 고쳤을 때 올린다 — 카카오·CF 가 주소별로 캐시해 두어
 // 파일만 바꾸면 한동안 옛 그림이 계속 나간다(2026-08-31 확인)
-$ogimg = 'https://kkokkofarm.j-curve.co.kr/og-invite.png?v=2';
+$ogimg = 'https://kkokkofarm.j-curve.co.kr/og-invite.png?v=3';
 $ogurl = 'https://kkokkofarm.j-curve.co.kr/i/'.rawurlencode($code);
 
 header('Content-Type: text/html; charset=utf-8');
@@ -95,23 +96,33 @@ header('Cache-Control: no-store');
           box-shadow: 0 12px 30px -12px rgba(90,66,26,.45); text-align: center; }
   h1 { font-size: 22px; margin: 0 0 8px; letter-spacing: -.02em; }
   p { font-size: 15px; line-height: 1.6; color: #6B6047; margin: 0 0 20px; }
-  .code { font-size: 30px; font-weight: 800; letter-spacing: .06em; background: #FCF3DC; border-radius: 16px;
-          padding: 14px 10px; margin-bottom: 8px; }
-  .hint { font-size: 13px; color: #8A7F63; margin: 0 0 20px; }
+  .codebox { display: flex; gap: 8px; align-items: stretch; margin-bottom: 10px; }
+  .code { flex: 1; font-size: 30px; font-weight: 800; letter-spacing: .06em; background: #FCF3DC; border-radius: 16px;
+          padding: 14px 10px; }
+  .copy { flex: 0 0 auto; min-width: 88px; font-family: inherit; font-size: 16px; font-weight: 800; color: #ED8B21;
+          background: #fff; border: 2px solid #EFE4C8; border-radius: 16px; padding: 0 16px; cursor: pointer; }
+  .copy.done { background: #ED8B21; border-color: #ED8B21; color: #fff; }
+  .hint { font-size: 14.5px; line-height: 1.6; color: #8A7F63; margin: 0 0 20px; }
+  .hint b { color: #6B6047; }
   a.btn { display: block; text-decoration: none; border-radius: 16px; padding: 15px; font-size: 16.5px; font-weight: 800; margin-bottom: 10px; }
   .go { background: linear-gradient(180deg, #F5A238, #ED8B21); color: #fff; }
   .store { background: #fff; color: #3A2E17; border: 2px solid #EFE4C8; }
-  .egg { font-size: 54px; margin-bottom: 6px; }
+  /* 앱 캐릭터 그대로 — 알 이모지는 무슨 앱인지 알려 주지 못했다(2026-08-31 지시) */
+  .hen { width: 96px; height: auto; margin: 0 auto 10px; display: block; }
 </style>
 </head>
 <body>
   <div class="card">
-    <div class="egg">🥚</div>
+    <img class="hen" src="/invite-hen.png" width="163" height="192" alt="꼬꼬농장 닭">
+
     <h1>꼬꼬농장에 초대받았어요!</h1>
     <p>친구와 함께 닭을 키우고 알을 모아<br>커피·기프티콘으로 바꿔 보세요.</p>
     <?php if ($code !== ''): ?>
-      <div class="code" id="code"><?= htmlspecialchars($code, ENT_QUOTES) ?></div>
-      <p class="hint">코드가 복사됐어요 — 앱에서 자동으로 입력됩니다</p>
+      <div class="codebox">
+        <div class="code" id="code"><?= htmlspecialchars($code, ENT_QUOTES) ?></div>
+        <button class="copy" id="copy" type="button">복사</button>
+      </div>
+      <p class="hint" id="hint">앱이 있으면 <b>앱으로 열기</b>로 코드가 바로 들어가요.<br>처음이라면 코드를 복사해 두고, 앱에서 붙여넣어 주세요.</p>
     <?php endif; ?>
     <a class="btn go" id="open" href="<?= htmlspecialchars($scheme, ENT_QUOTES) ?>">앱으로 열기</a>
     <a class="btn store" id="store" href="<?= htmlspecialchars($ios, ENT_QUOTES) ?>">앱 설치하기</a>
@@ -123,9 +134,39 @@ header('Cache-Control: no-store');
   var store = isIOS ? <?= json_encode($ios) ?> : <?= json_encode($aos) ?>;
   document.getElementById('store').href = store;
 
-  // 설치 후 첫 실행에서 코드를 자동으로 넣기 위해 미리 복사해 둔다(클립보드는 사용자 제스처 없이도
-  // 대부분 브라우저가 허용하지 않으므로 실패해도 조용히 넘어간다 — 화면의 코드가 대안이다)
-  if (code && navigator.clipboard) { navigator.clipboard.writeText(code).catch(function () {}); }
+  // 코드 복사 — 카톡 인앱 브라우저는 누르지 않은 복사를 막는다. 그래서 자동으로 복사한 척하지 않고
+  // 버튼을 눌러 복사하게 한다(예전 문구 '코드가 복사됐어요'는 사실이 아니었다 — 2026-08-31 제보).
+  // clipboard API 가 없거나 거부되면 옛 방식(execCommand)으로 한 번 더 시도한다.
+  function copyCode() {
+    var done = function () {
+      var b = document.getElementById('copy');
+      b.textContent = '복사됨';
+      b.className = 'copy done';
+      setTimeout(function () { b.textContent = '복사'; b.className = 'copy'; }, 1800);
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(code).then(done, legacy);
+
+      return;
+    }
+    legacy();
+    function legacy() {
+      var t = document.createElement('textarea');
+      t.value = code;
+      t.setAttribute('readonly', '');
+      t.style.cssText = 'position:fixed;left:-9999px;top:0;';
+      document.body.appendChild(t);
+      t.select();
+      t.setSelectionRange(0, code.length);   // iOS 는 select() 만으로는 잡히지 않는다
+      var ok = false;
+      try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+      document.body.removeChild(t);
+      if (ok) { done(); return; }
+      document.getElementById('hint').innerHTML = '코드를 길게 눌러 복사해 주세요';
+    }
+  }
+  var copyBtn = document.getElementById('copy');
+  if (copyBtn) { copyBtn.addEventListener('click', copyCode); }
 
   // 앱이 깔려 있으면 스킴이 열리고, 아니면 잠시 뒤 스토어로 보낸다.
   var hidden = false;
