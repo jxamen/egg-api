@@ -1,74 +1,43 @@
 <?php
 /**
- * AdMob 보상형 서버 측 확인(SSV) 콜백.
- *   GET /ads/ssv?ad_network=..&ad_unit=..&reward_amount=..&reward_item=..&timestamp=..
- *              &transaction_id=..&user_id=..&custom_data=..&key_id=..&signature=..
+ * AdMob 보상형 서버 측 확인(SSV) 콜백 — **공용 API 로 넘긴다.**
  *
- * 규칙
- *  - 서명이 맞을 때만 지급한다(클라이언트 이벤트는 믿지 않는다).
- *  - transaction_id 로 중복 지급을 막는다. 같은 콜백이 다시 와도 200.
- *  - 보상 수량은 콜백 값이 아니라 서버 상수(사료 1개)를 쓴다.
- *  - 하루 한도를 서버에서 센다.
- *  - 판단이 끝난 요청에는 200 을 준다(비 2xx 는 구글이 계속 재시도한다).
+ * 애드몹 콘솔에 이 주소가 등록돼 있는데(2026-09-01 확인), 앱은 이제 보상을
+ * 공용 API(jcurve-api)에서 가져간다. 여기서 지급하면 그 기록을 앱이 못 봐서
+ * 「시청을 확인하는 중이에요」에 멈춘다 — 그래서 받은 그대로 넘기고 답을 돌려준다.
+ *
+ * 서명 검증·중복 방지·한도 판단은 **넘겨받는 쪽이 한 곳에서** 한다.
+ * 두 곳에서 따로 검증하면 규칙이 갈린다.
+ *
+ * 콘솔 URL 을 공용 API 로 바꾸면 이 파일은 지워도 된다.
  */
 declare(strict_types=1);
 
-require_once __DIR__ . '/../../src/verify.php';
+$qs = (string) ($_SERVER['QUERY_STRING'] ?? '');
+$to = 'https://api.j-curve.co.kr/v1/kkokkofarm/ads/ssv' . ($qs !== '' ? '?' . $qs : '');
 
-$qs = (string)($_SERVER['QUERY_STRING'] ?? '');
-parse_str($qs, $q);
-$userId = isset($q['user_id']) ? (string)$q['user_id'] : null;
-$txId   = isset($q['transaction_id']) ? (string)$q['transaction_id'] : '';
+$ch = curl_init($to);
+curl_setopt_array($ch, [
+    CURLOPT_RETURNTRANSFER => true,
+    CURLOPT_TIMEOUT => 8,
+    CURLOPT_CONNECTTIMEOUT => 4,
+    // 구글이 보내는 헤더는 서명에 안 들어간다 — 쿼리만 그대로 전달하면 된다
+    CURLOPT_HTTPHEADER => ['Accept: text/plain'],
+]);
+$body = curl_exec($ch);
+$code = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+$err = curl_error($ch);
+curl_close($ch);
 
-/** 판단 결과를 남기고 응답한다 */
-function ssv_done(int $code, bool $ok, string $reason, ?string $userId, string $qs): never
-{
-    egg_log($ok, $reason, $userId, $qs);
-    http_response_code($code);
-    header('Content-Type: text/plain; charset=utf-8');
-    echo $reason;
+header('Content-Type: text/plain; charset=utf-8');
+
+if ($body === false || $code === 0) {
+    // 못 넘겼으면 5xx 로 답해 구글이 다시 보내게 둔다(지급 기회를 잃지 않는다)
+    error_log('ssv forward failed: ' . $err);
+    http_response_code(502);
+    echo 'forward_failed';
     exit;
 }
 
-if ($qs === '' || $txId === '') ssv_done(400, false, 'malformed', $userId, $qs);
-
-$v = egg_verify_ssv($qs);
-if (!$v['ok']) ssv_done(403, false, $v['reason'], $userId, $qs);
-
-// 재전송 방지 — timestamp 는 밀리초
-$ts = (int)($q['timestamp'] ?? 0);
-if ($ts > 0 && abs(time() - intdiv($ts, 1000)) > MAX_AGE_SEC) ssv_done(200, false, 'stale', $userId, $qs);
-
-// 테스트 콜백(애드몹 콘솔에서 URL 저장 시 발사)은 검증만 하고 지급하지 않는다
-if ($userId === null || $userId === '' || str_starts_with($userId, 'ssv-test')) {
-    ssv_done(200, true, 'test_callback', $userId, $qs);
-}
-
-try {
-    $db = egg_db();
-
-    // 하루 한도
-    $st = $db->prepare('SELECT COUNT(*) c FROM ad_reward WHERE user_id = ? AND created_at >= ?');
-    $st->execute([$userId, egg_today_start()]);
-    if ((int)$st->fetch()['c'] >= DAILY_LIMIT) ssv_done(200, false, 'daily_limit', $userId, $qs);
-
-    // 지급 — transaction_id 가 기본키라 중복은 여기서 걸린다
-    $ins = $db->prepare(egg_sql_insert_ignore() . ' ad_reward
-        (transaction_id, user_id, ad_unit, reward_item, reward_amount, custom_data, created_at)
-        VALUES (?,?,?,?,?,?,?)');
-    $ins->execute([
-        $txId,
-        $userId,
-        (string)($q['ad_unit'] ?? ''),
-        REWARD_ITEM,
-        REWARD_AMOUNT,
-        (string)($q['custom_data'] ?? ''),
-        time(),
-    ]);
-    ssv_done(200, true, $ins->rowCount() > 0 ? 'granted' : 'duplicate', $userId, $qs);
-} catch (Throwable $e) {
-    // DB 문제면 5xx 로 돌려 구글이 재시도하게 둔다
-    egg_log(false, 'db_error:' . $e->getMessage(), $userId, $qs);
-    http_response_code(500);
-    exit;
-}
+http_response_code($code);
+echo $body;
